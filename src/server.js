@@ -16,17 +16,42 @@ const users = [
 
 // --- LOGIN ROUTE ---
 app.post("/login", (req, res) => {
-  
+  const{username, password} = req.body;
+  const user = users.find(
+    (u) => u.username === username && u.password === password
+  );
+  if (!user) {
+    return res.status(401).send("Invalid credentials");
+  }
+  else{
+    const token = jwt.sign({ username: user.username, role: user.role},JWT_SECRET, { expiresIn: "1h" });
+    res.json({ token });
+  }
 });
-
+ 
 // --- AUTH MIDDLEWARE ---
 const authenticate = (req, res, next) => {
-  
+  const authheader = req.headers.authorization;
+  if (!authheader) {
+    return res.status(401).send("Authorization header missing");
+  }
+  const token = authheader.split(" ")[1];
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).send("Invalid or expired token");
+    }
+    req.user = user;
+    next();
+  });
 };
 
 // --- ROLE CHECK MIDDLEWARE ---
 const authorize = (allowedRoles) => (req, res, next) => {
-  
+  const {role} = req.user;
+  if (!allowedRoles.includes(role)) {
+    return res.status(403).send("Access denied");
+  }
+  next();
 };
 
 // --- PROTECTED ROUTES ---
